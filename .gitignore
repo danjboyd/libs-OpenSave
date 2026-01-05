@@ -1,0 +1,17 @@
+/debug.log
+/.gnustep-defaults/
+/.gnustep-test.conf
+/obj/
+**/obj/
+*.app/
+*.bundle/
+*.so
+*.so.*
+*.a
+*.dylib
+*.o
+*.lo
+*.la
+*.log
+*.swp
+*~
