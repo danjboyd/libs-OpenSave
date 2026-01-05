@@ -70,3 +70,4 @@ redistribution in a small, single-developer project.
   to ensure all tests are green.
 - When the app is run manually, stdout and stderr will be captured to
   `./debug.log` via a pipe to `tee` for later review.
+- Track unresolved issues in `OpenIssues.md`.

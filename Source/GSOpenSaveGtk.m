@@ -25,35 +25,84 @@ static BOOL GSOpenSaveEnsureGtk(void)
   return YES;
 }
 
-static GListModel *GSOpenSaveBuildFilters(NSArray *fileTypes)
+static void GSOpenSaveFilterAddPattern(GtkFileFilter *filter, NSString *type)
+{
+  if (![type isKindOfClass:[NSString class]]) {
+    return;
+  }
+  if ([type length] == 0) {
+    return;
+  }
+  if ([type hasPrefix:@"."]) {
+    NSString *pattern = [NSString stringWithFormat:@"*%@", type];
+    gtk_file_filter_add_pattern(filter, [pattern UTF8String]);
+  } else if ([type rangeOfString:@"."].location == NSNotFound) {
+    NSString *pattern = [NSString stringWithFormat:@"*.%@", type];
+    gtk_file_filter_add_pattern(filter, [pattern UTF8String]);
+  } else {
+    gtk_file_filter_add_pattern(filter, [type UTF8String]);
+  }
+}
+
+static GtkFileFilter *GSOpenSaveBuildFilter(NSArray *fileTypes, const char *name)
 {
   if (fileTypes == nil || [fileTypes count] == 0) {
     return NULL;
   }
 
   GtkFileFilter *filter = gtk_file_filter_new();
-  gtk_file_filter_set_name(filter, "Allowed Types");
+  if (name != NULL) {
+    gtk_file_filter_set_name(filter, name);
+  }
 
   for (NSString *type in fileTypes) {
-    if (![type isKindOfClass:[NSString class]]) {
-      continue;
+    GSOpenSaveFilterAddPattern(filter, type);
+  }
+
+  return filter;
+}
+
+static GListModel *GSOpenSaveBuildFilters(NSArray *fileTypes,
+                                          NSString *requiredFileType,
+                                          BOOL allowsOtherFileTypes,
+                                          GtkFileFilter **outDefault)
+{
+  GListStore *store = g_list_store_new(GTK_TYPE_FILE_FILTER);
+  GtkFileFilter *defaultFilter = NULL;
+
+  GtkFileFilter *allowed = GSOpenSaveBuildFilter(fileTypes, "Allowed Types");
+  if (allowed != NULL) {
+    g_list_store_append(store, allowed);
+    if (defaultFilter == NULL) {
+      defaultFilter = allowed;
     }
-    if ([type length] == 0) {
-      continue;
-    }
-    if ([type hasPrefix:@"."]) {
-      NSString *pattern = [NSString stringWithFormat:@"*%@", type];
-      gtk_file_filter_add_pattern(filter, [pattern UTF8String]);
-    } else if ([type rangeOfString:@"."].location == NSNotFound) {
-      NSString *pattern = [NSString stringWithFormat:@"*.%@", type];
-      gtk_file_filter_add_pattern(filter, [pattern UTF8String]);
-    } else {
-      gtk_file_filter_add_pattern(filter, [type UTF8String]);
+    g_object_unref(allowed);
+  }
+
+  if (requiredFileType != nil && [requiredFileType length] > 0) {
+    NSArray *required = [NSArray arrayWithObject:requiredFileType];
+    GtkFileFilter *requiredFilter = GSOpenSaveBuildFilter(required, "Required Type");
+    if (requiredFilter != NULL) {
+      g_list_store_append(store, requiredFilter);
+      defaultFilter = requiredFilter;
+      g_object_unref(requiredFilter);
     }
   }
-  GListStore *store = g_list_store_new(GTK_TYPE_FILE_FILTER);
-  g_list_store_append(store, filter);
-  g_object_unref(filter);
+
+  if (allowsOtherFileTypes) {
+    GtkFileFilter *allFiles = gtk_file_filter_new();
+    gtk_file_filter_set_name(allFiles, "All Files");
+    gtk_file_filter_add_pattern(allFiles, "*");
+    g_list_store_append(store, allFiles);
+    if (defaultFilter == NULL) {
+      defaultFilter = allFiles;
+    }
+    g_object_unref(allFiles);
+  }
+
+  if (outDefault != NULL) {
+    *outDefault = defaultFilter;
+  }
   return G_LIST_MODEL(store);
 }
 
@@ -179,6 +228,46 @@ static NSInteger GSOpenSaveRunDialogSelectFolder(GtkFileDialog *dialog,
   return resultCode;
 }
 
+static NSInteger GSOpenSaveRunDialogSelectMultipleFolders(GtkFileDialog *dialog,
+                                                          NSMutableArray **outFilenames)
+{
+  if (GSOpenSaveEnsureGtk() == NO) {
+    return NSFileHandlingPanelCancelButton;
+  }
+
+  GSOpenSaveDialogResult state = {0};
+  gtk_file_dialog_select_multiple_folders(dialog, NULL, NULL, GSOpenSaveDialogDone, &state);
+  GSOpenSaveSpinMainLoops(&state);
+
+  NSInteger resultCode = NSFileHandlingPanelCancelButton;
+  if (state.result != NULL) {
+    GListModel *model = gtk_file_dialog_select_multiple_folders_finish(dialog, G_ASYNC_RESULT(state.result), &state.error);
+    if (model != NULL) {
+      if (outFilenames != NULL) {
+        *outFilenames = [NSMutableArray array];
+        guint n = g_list_model_get_n_items(model);
+        for (guint i = 0; i < n; i++) {
+          GFile *file = g_list_model_get_item(model, i);
+          char *path = g_file_get_path(file);
+          if (path != NULL) {
+            [*outFilenames addObject:[NSString stringWithUTF8String:path]];
+            g_free(path);
+          }
+          g_object_unref(file);
+        }
+      }
+      g_object_unref(model);
+      resultCode = NSFileHandlingPanelOKButton;
+    }
+    g_object_unref(state.result);
+  }
+
+  if (state.error != NULL) {
+    g_error_free(state.error);
+  }
+  return resultCode;
+}
+
 static NSInteger GSOpenSaveRunDialogSave(GtkFileDialog *dialog,
                                          NSMutableArray **outFilenames)
 {
@@ -229,8 +318,17 @@ NSInteger GSOpenSaveGtkRunOpenPanel(NSOpenPanel *panel,
   }
 
   GtkFileDialog *dialog = gtk_file_dialog_new();
-  if ([panel title] != nil) {
-    gtk_file_dialog_set_title(dialog, [[panel title] UTF8String]);
+  NSString *title = [panel title];
+  if (title != nil) {
+    gtk_file_dialog_set_title(dialog, [title UTF8String]);
+  }
+  if (directory == nil) {
+    NSURL *dirURL = [panel directoryURL];
+    if (dirURL != nil) {
+      directory = [dirURL path];
+    } else {
+      directory = [panel directory];
+    }
   }
   if (directory != nil) {
     GFile *folder = g_file_new_for_path([directory UTF8String]);
@@ -240,16 +338,24 @@ NSInteger GSOpenSaveGtkRunOpenPanel(NSOpenPanel *panel,
   if (filename != nil) {
     gtk_file_dialog_set_initial_name(dialog, [filename UTF8String]);
   }
-  GListModel *filters = GSOpenSaveBuildFilters(fileTypes);
+  GtkFileFilter *defaultFilter = NULL;
+  GListModel *filters = GSOpenSaveBuildFilters(fileTypes, nil, NO, &defaultFilter);
   if (filters != NULL) {
     gtk_file_dialog_set_filters(dialog, filters);
+    if (defaultFilter != NULL) {
+      gtk_file_dialog_set_default_filter(dialog, defaultFilter);
+    }
     g_object_unref(filters);
   }
 
   NSMutableArray *filenames = nil;
   NSInteger result = NSFileHandlingPanelCancelButton;
   if ([panel canChooseDirectories] && ![panel canChooseFiles]) {
-    result = GSOpenSaveRunDialogSelectFolder(dialog, &filenames);
+    if ([panel allowsMultipleSelection]) {
+      result = GSOpenSaveRunDialogSelectMultipleFolders(dialog, &filenames);
+    } else {
+      result = GSOpenSaveRunDialogSelectFolder(dialog, &filenames);
+    }
   } else {
     result = GSOpenSaveRunDialogOpen(dialog, [panel allowsMultipleSelection], &filenames);
   }
@@ -270,13 +376,20 @@ NSInteger GSOpenSaveGtkRunSavePanel(NSSavePanel *panel,
   }
 
   GtkFileDialog *dialog = gtk_file_dialog_new();
-  if ([panel title] != nil) {
-    gtk_file_dialog_set_title(dialog, [[panel title] UTF8String]);
+  NSString *title = [panel title];
+  if (title == nil || [title length] == 0) {
+    title = [panel message];
+  }
+  if (title != nil) {
+    gtk_file_dialog_set_title(dialog, [title UTF8String]);
   }
   if (directory != nil) {
     GFile *folder = g_file_new_for_path([directory UTF8String]);
     gtk_file_dialog_set_initial_folder(dialog, folder);
     g_object_unref(folder);
+  }
+  if ([panel prompt] != nil) {
+    gtk_file_dialog_set_accept_label(dialog, [[panel prompt] UTF8String]);
   }
 
   NSString *defaultName = filename;
@@ -286,9 +399,16 @@ NSInteger GSOpenSaveGtkRunSavePanel(NSSavePanel *panel,
   if (defaultName != nil) {
     gtk_file_dialog_set_initial_name(dialog, [defaultName UTF8String]);
   }
-  GListModel *filters = GSOpenSaveBuildFilters(fileTypes);
+  GtkFileFilter *defaultFilter = NULL;
+  GListModel *filters = GSOpenSaveBuildFilters(fileTypes,
+                                               [panel requiredFileType],
+                                               [panel allowsOtherFileTypes],
+                                               &defaultFilter);
   if (filters != NULL) {
     gtk_file_dialog_set_filters(dialog, filters);
+    if (defaultFilter != NULL) {
+      gtk_file_dialog_set_default_filter(dialog, defaultFilter);
+    }
     g_object_unref(filters);
   }
 
