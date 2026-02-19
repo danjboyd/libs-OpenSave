@@ -8,16 +8,21 @@ OpenSaveTest_OBJC_FILES = \
 
 ADDITIONAL_INCLUDE_DIRS += -I../Headers
 ADDITIONAL_LIB_DIRS += -L../Source/$(GNUSTEP_OBJ_DIR_NAME)
-ADDITIONAL_LIB_DIRS += -L/usr/GNUstep/System/Library/Libraries
+GNUSTEP_SYSTEM_LIBS_DIR := $(shell gnustep-config --variable=GNUSTEP_SYSTEM_LIBRARIES 2>/dev/null)
+ifneq ($(GNUSTEP_SYSTEM_LIBS_DIR),)
+  ADDITIONAL_LIB_DIRS += -L$(GNUSTEP_SYSTEM_LIBS_DIR)
+endif
 ADDITIONAL_GUI_LIBS += -lOpenSave
 ADDITIONAL_OBJC_LIBS += -ldispatch
 
 include $(GNUSTEP_MAKEFILES)/application.make
 
 run: all
-	LD_LIBRARY_PATH=/usr/GNUstep/System/Library/Libraries:../Source/$(GNUSTEP_OBJ_DIR_NAME) \
+	PATH=../Source/$(GNUSTEP_OBJ_DIR_NAME):$$PATH \
+	LD_LIBRARY_PATH=$(GNUSTEP_SYSTEM_LIBS_DIR):../Source/$(GNUSTEP_OBJ_DIR_NAME) \
 	$(GNUSTEP_BUILD_DIR)/$(APP_NAME).app/$(GNUSTEP_TARGET_LDIR)/$(APP_NAME)$(EXEEXT)
 
 debug: all
-	LD_LIBRARY_PATH=/usr/GNUstep/System/Library/Libraries:../Source/$(GNUSTEP_OBJ_DIR_NAME) \
+	PATH=../Source/$(GNUSTEP_OBJ_DIR_NAME):$$PATH \
+	LD_LIBRARY_PATH=$(GNUSTEP_SYSTEM_LIBS_DIR):../Source/$(GNUSTEP_OBJ_DIR_NAME) \
 	gdb --args $(GNUSTEP_BUILD_DIR)/$(APP_NAME).app/$(GNUSTEP_TARGET_LDIR)/$(APP_NAME)$(EXEEXT)

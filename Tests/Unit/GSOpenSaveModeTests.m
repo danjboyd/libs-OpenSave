@@ -6,16 +6,25 @@
 
 @implementation GSOpenSaveModeTests
 
-- (void)testDefaultModeIsGtk
+- (void)testDefaultModeIsAuto
 {
-  XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeGtk);
+  XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeAuto);
 }
 
 - (void)testModeRoundTrip
 {
+  GSOpenSaveSetMode(GSOpenSaveModeAuto);
+  XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeAuto);
+
+  GSOpenSaveSetMode(GSOpenSaveModeGtk);
+  XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeGtk);
+
+  GSOpenSaveSetMode(GSOpenSaveModeWin32);
+  XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeWin32);
+
   GSOpenSaveSetMode(GSOpenSaveModeGNUstep);
   XCTAssertEqual(GSOpenSaveGetMode(), GSOpenSaveModeGNUstep);
-  GSOpenSaveSetMode(GSOpenSaveModeGtk);
+  GSOpenSaveSetMode(GSOpenSaveModeAuto);
 }
 
 @end

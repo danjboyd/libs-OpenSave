@@ -4,10 +4,10 @@ This document captures the initial design and implementation plan for
 libs-OpenSave.
 
 ## Goals
-- Provide native GTK/GNOME open/save dialogs while preserving the
+- Provide native platform open/save dialogs while preserving the
   GNUstep/Cocoa Open/Save panel API.
 - Require only relinking (no code changes) for default usage.
-- Allow optional runtime switching between GTK and GNUstep dialogs.
+- Allow optional runtime switching between Auto/GTK/Win32/GNUstep modes.
 - Keep a small proof-of-concept app for internal testing.
 
 ## Non-Goals
@@ -18,22 +18,26 @@ libs-OpenSave.
 ## High-Level Approach
 - Implement replacement `NSOpenPanel` and `NSSavePanel` classes in this
   library so symbols resolve to our versions at link time.
-- Default behavior uses `GtkFileChooserNative`.
+- Default behavior uses an automatic backend selector:
+  - Win32 native dialogs on Windows.
+  - GTK 4 dialogs on Linux when available.
+  - GNUstep fallback when no native backend is available.
 - Provide a public toggle API so apps can switch modes at runtime.
-- Support a GNUstep fallback build for cases where GTK dialogs are not
-  desired.
+- Support GNUstep fallback when no native backend is selected or available.
 
 ## Runtime Toggle API
 Public header `GSOpenSave.h`:
 ```objc
 typedef NS_ENUM(NSInteger, GSOpenSaveMode) {
+  GSOpenSaveModeAuto = 0,
   GSOpenSaveModeGtk = 1,
-  GSOpenSaveModeGNUstep = 2
+  GSOpenSaveModeGNUstep = 2,
+  GSOpenSaveModeWin32 = 3
 };
 void GSOpenSaveSetMode(GSOpenSaveMode mode);
 GSOpenSaveMode GSOpenSaveGetMode(void);
 ```
-Default mode is `GSOpenSaveModeGtk`.
+Default mode is `GSOpenSaveModeAuto`.
 
 ## API Coverage (Best Effort)
 Core methods to implement:
@@ -61,8 +65,8 @@ Core methods to implement:
   extension filters, and runtime toggle.
 
 ## Build Outputs
-- `libOpenSave.so`: GTK implementation (default).
-- `libOpenSave-gnustep.so`: GNUstep fallback build.
+- `libOpenSave`: single library with platform-specific native backends:
+  GTK on Linux (when available) and Win32 on Windows.
 
 ## Testing and CI
 - Use GNUstep-make and tools-xctest to build test bundles (`.bundle`).

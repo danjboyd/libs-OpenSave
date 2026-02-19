@@ -1,7 +1,7 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
 #import "GSOpenSave.h"
-#import "GSOpenSaveGtk.h"
+#import "GSOpenSaveBackend.h"
 
 static void GSOpenSaveSwizzle(Class cls, SEL original, SEL replacement, BOOL isClassMethod)
 {
@@ -23,10 +23,9 @@ static void GSOpenSaveSwizzle(Class cls, SEL original, SEL replacement, BOOL isC
   method_exchangeImplementations(originalMethod, replacementMethod);
 }
 
-static BOOL GSOpenSaveShouldUseGtk(void)
+static BOOL GSOpenSaveShouldUseNativeBackend(void)
 {
-  return (GSOpenSaveGetMode() == GSOpenSaveModeGtk &&
-          GSOpenSaveGtkIsAvailable());
+  return GSOpenSaveHasNativeBackend();
 }
 
 static const void *GSOpenSaveAllowedFileTypesKey = &GSOpenSaveAllowedFileTypesKey;
@@ -126,7 +125,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 + (NSOpenPanel *)gs_openPanel
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     return [self gs_openPanel];
   }
   return [self gs_openPanel];
@@ -134,36 +133,36 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSInteger)gs_runModal
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModal];
   }
-  return GSOpenSaveGtkRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
+  return GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path file:(NSString *)name
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name];
   }
-  return GSOpenSaveGtkRunOpenPanel(self, path, name, [self allowedFileTypes]);
+  return GSOpenSaveRunOpenPanel(self, path, name, [self allowedFileTypes]);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
                                 file:(NSString *)name
                                types:(NSArray *)fileTypes
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name types:fileTypes];
   }
-  return GSOpenSaveGtkRunOpenPanel(self, path, name, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes);
 }
 
 - (NSInteger)gs_runModalForTypes:(NSArray *)fileTypes
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForTypes:fileTypes];
   }
-  return GSOpenSaveGtkRunOpenPanel(self, nil, nil, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, nil, nil, fileTypes);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
@@ -171,11 +170,11 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
                                types:(NSArray *)fileTypes
                      relativeToWindow:(NSWindow *)window
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name types:fileTypes relativeToWindow:window];
   }
   (void)window;
-  return GSOpenSaveGtkRunOpenPanel(self, path, name, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes);
 }
 
 - (void)gs_beginSheetForDirectory:(NSString *)path
@@ -186,7 +185,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
                    didEndSelector:(SEL)didEndSelector
                       contextInfo:(void *)contextInfo
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginSheetForDirectory:path
                                file:name
                               types:fileTypes
@@ -212,7 +211,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
                didEndSelector:(SEL)didEndSelector
                   contextInfo:(void *)contextInfo
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginForDirectory:absoluteDirectoryPath
                           file:filename
                          types:fileTypes
@@ -232,12 +231,12 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 - (void)gs_beginSheetModalForWindow:(NSWindow *)window
                   completionHandler:(void (^)(NSInteger result))handler
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginSheetModalForWindow:window completionHandler:handler];
     return;
   }
   (void)window;
-  NSInteger result = GSOpenSaveGtkRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
   if (handler != NULL) {
     handler(result);
   }
@@ -245,7 +244,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setAllowedFileTypes:(NSArray *)types
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setAllowedFileTypes:types];
     return;
   }
@@ -254,7 +253,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setCanChooseDirectories:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setCanChooseDirectories:flag];
     return;
   }
@@ -264,7 +263,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setCanChooseFiles:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setCanChooseFiles:flag];
     return;
   }
@@ -274,7 +273,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setAllowsMultipleSelection:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setAllowsMultipleSelection:flag];
     return;
   }
@@ -284,7 +283,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setResolvesAliases:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setResolvesAliases:flag];
     return;
   }
@@ -294,7 +293,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_allowedFileTypes
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_allowedFileTypes];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveAllowedFileTypesKey);
@@ -302,7 +301,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_canChooseDirectories
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_canChooseDirectories];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveCanChooseDirectoriesKey, NO);
@@ -310,7 +309,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_canChooseFiles
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_canChooseFiles];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveCanChooseFilesKey, YES);
@@ -318,7 +317,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_allowsMultipleSelection
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_allowsMultipleSelection];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveAllowsMultipleSelectionKey, NO);
@@ -326,7 +325,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_resolvesAliases
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_resolvesAliases];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveResolvesAliasesKey, NO);
@@ -334,7 +333,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSURL *)gs_URL
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_URL];
   }
   NSArray *urls = GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenURLsKey);
@@ -343,7 +342,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_URLs
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_URLs];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenURLsKey);
@@ -351,7 +350,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_filename
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_filename];
   }
   NSArray *names = GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenFilenamesKey);
@@ -360,7 +359,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_filenames
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_filenames];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenFilenamesKey);
@@ -473,7 +472,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 + (NSSavePanel *)gs_savePanel
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     return [self gs_savePanel];
   }
   return [self gs_savePanel];
@@ -481,21 +480,21 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSInteger)gs_runModal
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModal];
   }
-  return GSOpenSaveGtkRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
 }
 
 - (void)gs_beginSheetModalForWindow:(NSWindow *)window
                   completionHandler:(void (^)(NSInteger result))handler
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginSheetModalForWindow:window completionHandler:handler];
     return;
   }
   (void)window;
-  NSInteger result = GSOpenSaveGtkRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
   if (handler != NULL) {
     handler(result);
   }
@@ -503,11 +502,11 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_beginWithCompletionHandler:(GSSavePanelCompletionHandler)handler
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginWithCompletionHandler:handler];
     return;
   }
-  NSInteger result = GSOpenSaveGtkRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
   if (handler != NULL) {
     handler(result);
   }
@@ -515,21 +514,21 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path file:(NSString *)filename
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:filename];
   }
-  return GSOpenSaveGtkRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
                                 file:(NSString *)filename
                    relativeToWindow:(NSWindow *)window
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:filename relativeToWindow:window];
   }
   (void)window;
-  return GSOpenSaveGtkRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
 }
 
 - (void)gs_beginSheetForDirectory:(NSString *)path
@@ -539,7 +538,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
                    didEndSelector:(SEL)didEndSelector
                       contextInfo:(void *)contextInfo
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     [self gs_beginSheetForDirectory:path
                                file:filename
                      modalForWindow:window
@@ -552,12 +551,12 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
   (void)delegate;
   (void)didEndSelector;
   (void)contextInfo;
-  GSOpenSaveGtkRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
 }
 
 - (void)gs_setAllowedFileTypes:(NSArray *)types
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setAllowedFileTypes:types];
     return;
   }
@@ -566,7 +565,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setAccessoryView:(NSView *)aView
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setAccessoryView:aView];
     return;
   }
@@ -575,7 +574,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setTitle:(NSString *)title
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setTitle:title];
     return;
   }
@@ -584,7 +583,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setPrompt:(NSString *)prompt
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setPrompt:prompt];
     return;
   }
@@ -593,7 +592,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setNameFieldStringValue:(NSString *)value
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setNameFieldStringValue:value];
     return;
   }
@@ -602,7 +601,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setNameFieldLabel:(NSString *)label
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setNameFieldLabel:label];
     return;
   }
@@ -611,7 +610,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setMessage:(NSString *)message
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setMessage:message];
     return;
   }
@@ -620,7 +619,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setCanSelectHiddenExtension:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setCanSelectHiddenExtension:flag];
     return;
   }
@@ -630,7 +629,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setExtensionHidden:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setExtensionHidden:flag];
     return;
   }
@@ -640,7 +639,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setShowsHiddenFiles:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setShowsHiddenFiles:flag];
     return;
   }
@@ -650,7 +649,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setDirectory:(NSString *)path
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setDirectory:path];
     return;
   }
@@ -659,7 +658,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setDirectoryURL:(NSURL *)url
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setDirectoryURL:url];
     return;
   }
@@ -671,7 +670,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setRequiredFileType:(NSString *)fileType
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setRequiredFileType:fileType];
     return;
   }
@@ -680,7 +679,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setAllowsOtherFileTypes:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setAllowsOtherFileTypes:flag];
     return;
   }
@@ -690,7 +689,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_setTreatsFilePackagesAsDirectories:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setTreatsFilePackagesAsDirectories:flag];
     return;
   }
@@ -700,14 +699,14 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (void)gs_validateVisibleColumns
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_validateVisibleColumns];
   }
 }
 
 - (void)gs_setCanCreateDirectories:(BOOL)flag
 {
-  if (GSOpenSaveGetMode() == GSOpenSaveModeGNUstep) {
+  if (!GSOpenSaveHasNativeBackend()) {
     [self gs_setCanCreateDirectories:flag];
     return;
   }
@@ -717,7 +716,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_allowedFileTypes
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_allowedFileTypes];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveAllowedFileTypesKey);
@@ -725,7 +724,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSView *)gs_accessoryView
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_accessoryView];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveAccessoryViewKey);
@@ -733,7 +732,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_title
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_title];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveTitleKey);
@@ -741,7 +740,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_prompt
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_prompt];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSavePromptKey);
@@ -749,7 +748,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_nameFieldStringValue
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_nameFieldStringValue];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveNameFieldValueKey);
@@ -757,7 +756,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_nameFieldLabel
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_nameFieldLabel];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveNameFieldLabelKey);
@@ -765,7 +764,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_message
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_message];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveMessageKey);
@@ -773,7 +772,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_canSelectHiddenExtension
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_canSelectHiddenExtension];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveCanSelectHiddenExtensionKey, NO);
@@ -781,7 +780,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_isExtensionHidden
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_isExtensionHidden];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveExtensionHiddenKey, NO);
@@ -789,7 +788,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_showsHiddenFiles
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_showsHiddenFiles];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveShowsHiddenFilesKey, NO);
@@ -797,7 +796,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_directory
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_directory];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveDirectoryKey);
@@ -805,7 +804,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSURL *)gs_directoryURL
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_directoryURL];
   }
   NSURL *url = GSOpenSaveGetAssociatedObject(self, GSOpenSaveDirectoryURLKey);
@@ -818,7 +817,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_requiredFileType
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_requiredFileType];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveRequiredFileTypeKey);
@@ -826,7 +825,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_allowsOtherFileTypes
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_allowsOtherFileTypes];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveAllowsOtherFileTypesKey, NO);
@@ -834,7 +833,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_treatsFilePackagesAsDirectories
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_treatsFilePackagesAsDirectories];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveTreatsPackagesAsDirsKey, NO);
@@ -842,7 +841,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (BOOL)gs_canCreateDirectories
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_canCreateDirectories];
   }
   return GSOpenSaveBoolForKey(self, GSOpenSaveCanCreateDirectoriesKey, NO);
@@ -850,7 +849,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSURL *)gs_URL
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_URL];
   }
   NSString *path = GSOpenSaveGetAssociatedObject(self, GSOpenSaveSaveFilenameKey);
@@ -859,7 +858,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_filename
 {
-  if (!GSOpenSaveShouldUseGtk()) {
+  if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_filename];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveSaveFilenameKey);

@@ -4,29 +4,28 @@ This repository uses GNUstep-make and tools-xctest for unit and integration
 tests. Tests are compiled as `.bundle` targets and executed with `xctest`.
 
 ## Structure
-- `tests/unit/`: headless unit tests.
-- `tests/integration/`: GTK dialog integration tests.
+- `Tests/Unit/`: headless unit tests.
+- `Tests/Integration/`: GTK dialog integration tests.
 
 ## Running Tests
-Ensure `.gnustep-test.conf` exists and is only writable by its owner:
+From MSYS2 `clang64` shell:
 ```sh
-chmod 600 .gnustep-test.conf
+source /clang64/share/GNUstep/Makefiles/GNUstep.sh
 ```
 
-Build and run unit tests:
+Build tests:
 ```sh
 make -C Tests
-GNUSTEP_CONFIG_FILE=./.gnustep-test.conf \
-LD_LIBRARY_PATH=/usr/GNUstep/System/Library/Libraries:$(pwd)/Source/obj \
-xctest $(find Tests -name "GSOpenSaveUnitTests.bundle")
+```
+
+Run unit tests:
+```sh
+make -C Tests run-unit
 ```
 
 Run GTK integration tests (optional):
 ```sh
-GS_OPENSAVE_RUN_GTK_TESTS=1 \
-GNUSTEP_CONFIG_FILE=./.gnustep-test.conf \
-LD_LIBRARY_PATH=/usr/GNUstep/System/Library/Libraries:$(pwd)/Source/obj \
-xctest $(find Tests -name "GSOpenSaveGtkTests.bundle")
+make -C Tests run-integration
 ```
 
 ## Proof-of-Concept App

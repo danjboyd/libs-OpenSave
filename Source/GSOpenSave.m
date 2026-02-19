@@ -1,6 +1,6 @@
 #import "GSOpenSave.h"
 
-static GSOpenSaveMode gsOpenSaveMode = GSOpenSaveModeGtk;
+static GSOpenSaveMode gsOpenSaveMode = GSOpenSaveModeAuto;
 
 void GSOpenSaveSetMode(GSOpenSaveMode mode)
 {

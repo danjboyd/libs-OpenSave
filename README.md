@@ -1,8 +1,8 @@
 # libs-OpenSave
 
 GNUstep library that implements the Cocoa/GNUstep Open and Save panels
-using native GTK/GNOME dialogs. Includes a small proof-of-concept app
-used for internal testing.
+using native platform dialogs (GTK/GNOME on Linux, Win32 dialogs on
+Windows). Includes a small proof-of-concept app used for internal testing.
 
 ## Components
 - Library: drop-in implementation of Open/Save panels for GNUstep apps.
@@ -12,10 +12,11 @@ used for internal testing.
 Early development.
 
 ## Build
-Build everything:
+Build everything from a GNUstep-configured shell.
+
+MSYS2 `clang64` example:
 ```sh
-PATH=/usr/GNUstep/System/Tools:$PATH \
-LD_LIBRARY_PATH=/usr/GNUstep/System/Library/Libraries \
+source /clang64/share/GNUstep/Makefiles/GNUstep.sh
 make
 ```
 
@@ -24,15 +25,16 @@ Run the test app:
 make -C App run
 ```
 
-Unit tests (see `tests/README.md` for details):
+Unit tests (see `Tests/README.md` for details):
 ```sh
-make -C Tests
+make -C Tests run-unit
 ```
 
-## GTK Dependency
-Native dialogs use GTK 4 (`GtkFileDialog`). If GTK 4 headers and pkg-config
-files are not available, the library builds but GTK dialogs are disabled
-(panels fall back to GNUstep).
+## Native Backend Dependencies
+- Linux: GTK 4 (`GtkFileDialog`) is used when `pkg-config gtk4` is available.
+- Windows (MSYS2 MinGW/clang toolchains): native Win32 dialogs are used.
+
+When no native backend is available, panels fall back to GNUstep dialogs.
 
 ## License
 LGPL-2.1-or-later. See `LICENSE`.

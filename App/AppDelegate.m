@@ -8,18 +8,9 @@
 
 - (void)mouseDown:(NSEvent *)event
 {
-  (void)event;
   fprintf(stderr, "Event: MouseDown (%s)\n", [[self title] UTF8String]);
   fflush(stderr);
-  if ([self target] != nil && [self action] != NULL) {
-    fprintf(stderr, "Event: DispatchAction (%s)\n", [[self title] UTF8String]);
-    fflush(stderr);
-    id target = [self target];
-    SEL action = [self action];
-    if ([target respondsToSelector:action]) {
-      [target performSelector:action withObject:self];
-    }
-  }
+  [super mouseDown:event];
 }
 
 - (void)mouseUp:(NSEvent *)event
@@ -37,6 +28,21 @@
 @property (nonatomic, retain) NSTextField *resultLabel;
 @property (nonatomic, retain) NSTimer *heartbeatTimer;
 @end
+
+static NSString *GSOpenSaveModeName(GSOpenSaveMode mode)
+{
+  switch (mode) {
+    case GSOpenSaveModeGtk:
+      return @"GTK";
+    case GSOpenSaveModeGNUstep:
+      return @"GNUstep";
+    case GSOpenSaveModeWin32:
+      return @"Win32";
+    case GSOpenSaveModeAuto:
+    default:
+      return @"Auto";
+  }
+}
 
 @implementation AppDelegate
 
@@ -126,7 +132,7 @@
   (void)sender;
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   fprintf(stderr, "Open panel requested (mode: %s).\n",
-          (GSOpenSaveGetMode() == GSOpenSaveModeGtk) ? "GTK" : "GNUstep");
+          [GSOpenSaveModeName(GSOpenSaveGetMode()) UTF8String]);
   fflush(stderr);
   NSInteger result = [panel runModal];
   if (result == NSFileHandlingPanelOKButton) {
@@ -146,7 +152,7 @@
   NSSavePanel *panel = [NSSavePanel savePanel];
   GSOpenSaveMode mode = GSOpenSaveGetMode();
   fprintf(stderr, "Save panel requested (mode: %s).\n",
-          (mode == GSOpenSaveModeGtk) ? "GTK" : "GNUstep");
+          [GSOpenSaveModeName(mode) UTF8String]);
   fflush(stderr);
   if (mode == GSOpenSaveModeGNUstep) {
     fprintf(stderr, "Warning: GNUstep save panel is unstable; using GTK for save.\n");
@@ -172,13 +178,23 @@
 {
   (void)sender;
   GSOpenSaveMode mode = GSOpenSaveGetMode();
-  if (mode == GSOpenSaveModeGtk) {
-    GSOpenSaveSetMode(GSOpenSaveModeGNUstep);
-  } else {
-    GSOpenSaveSetMode(GSOpenSaveModeGtk);
+  switch (mode) {
+    case GSOpenSaveModeAuto:
+      GSOpenSaveSetMode(GSOpenSaveModeGtk);
+      break;
+    case GSOpenSaveModeGtk:
+      GSOpenSaveSetMode(GSOpenSaveModeWin32);
+      break;
+    case GSOpenSaveModeWin32:
+      GSOpenSaveSetMode(GSOpenSaveModeGNUstep);
+      break;
+    case GSOpenSaveModeGNUstep:
+    default:
+      GSOpenSaveSetMode(GSOpenSaveModeAuto);
+      break;
   }
   fprintf(stderr, "Mode toggled to: %s\n",
-          (GSOpenSaveGetMode() == GSOpenSaveModeGtk) ? "GTK" : "GNUstep");
+          [GSOpenSaveModeName(GSOpenSaveGetMode()) UTF8String]);
   fflush(stderr);
   [self updateModeLabel];
 }
@@ -208,13 +224,13 @@
 {
   (void)timer;
   fprintf(stderr, "Heartbeat (mode: %s)\n",
-          (GSOpenSaveGetMode() == GSOpenSaveModeGtk) ? "GTK" : "GNUstep");
+          [GSOpenSaveModeName(GSOpenSaveGetMode()) UTF8String]);
   fflush(stderr);
 }
 
 - (void)updateModeLabel
 {
-  NSString *mode = (GSOpenSaveGetMode() == GSOpenSaveModeGtk) ? @"GTK" : @"GNUstep";
+  NSString *mode = GSOpenSaveModeName(GSOpenSaveGetMode());
   [self.modeLabel setStringValue:[NSString stringWithFormat:@"Mode: %@", mode]];
 
   NSString *defaultDir = [[NSUserDefaults standardUserDefaults] objectForKey:@"GSOpenSaveDefaultDir"];
