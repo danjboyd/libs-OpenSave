@@ -4,6 +4,7 @@ BUNDLE_NAME = GSOpenSaveUnitTests
 BUNDLE_EXTENSION = .bundle
 
 GSOpenSaveUnitTests_OBJC_FILES = \
+	GSOpenSavePanelAccessorTests.m \
 	GSOpenSaveModeTests.m
 
 ADDITIONAL_INCLUDE_DIRS += -I../../Headers

@@ -5,18 +5,31 @@
 
 static void GSOpenSaveSwizzle(Class cls, SEL original, SEL replacement, BOOL isClassMethod)
 {
+  Class targetClass = isClassMethod ? object_getClass((id)cls) : cls;
   Method originalMethod = NULL;
   Method replacementMethod = NULL;
+  BOOL didAddOriginal = NO;
 
-  if (isClassMethod) {
-    originalMethod = class_getClassMethod(cls, original);
-    replacementMethod = class_getClassMethod(cls, replacement);
-  } else {
-    originalMethod = class_getInstanceMethod(cls, original);
-    replacementMethod = class_getInstanceMethod(cls, replacement);
-  }
+  originalMethod = class_getInstanceMethod(targetClass, original);
+  replacementMethod = class_getInstanceMethod(targetClass, replacement);
 
   if (originalMethod == NULL || replacementMethod == NULL) {
+    return;
+  }
+
+  /* Preserve superclass methods on subclasses such as NSOpenPanel.URL.
+     A plain method_exchangeImplementations() would swap the inherited
+     NSSavePanel method object twice and leave NSOpenPanel routed through the
+     save-panel accessor path. */
+  didAddOriginal = class_addMethod(targetClass,
+                                   original,
+                                   method_getImplementation(replacementMethod),
+                                   method_getTypeEncoding(replacementMethod));
+  if (didAddOriginal) {
+    class_replaceMethod(targetClass,
+                        replacement,
+                        method_getImplementation(originalMethod),
+                        method_getTypeEncoding(originalMethod));
     return;
   }
 
@@ -67,6 +80,17 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 {
   NSNumber *value = GSOpenSaveGetAssociatedObject(obj, key);
   return value != nil ? [value boolValue] : defaultValue;
+}
+
+static BOOL GSOpenSaveHasStoredOpenSelection(NSOpenPanel *panel)
+{
+  return (GSOpenSaveGetAssociatedObject(panel, GSOpenSaveOpenURLsKey) != nil ||
+          GSOpenSaveGetAssociatedObject(panel, GSOpenSaveOpenFilenamesKey) != nil);
+}
+
+static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
+{
+  return GSOpenSaveGetAssociatedObject(panel, GSOpenSaveSaveFilenameKey) != nil;
 }
 
 @interface NSOpenPanel (GSOpenSaveState)
@@ -333,7 +357,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSURL *)gs_URL
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredOpenSelection(self)) {
     return [self gs_URL];
   }
   NSArray *urls = GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenURLsKey);
@@ -342,7 +366,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_URLs
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredOpenSelection(self)) {
     return [self gs_URLs];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenURLsKey);
@@ -350,7 +374,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_filename
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredOpenSelection(self)) {
     return [self gs_filename];
   }
   NSArray *names = GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenFilenamesKey);
@@ -359,7 +383,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSArray *)gs_filenames
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredOpenSelection(self)) {
     return [self gs_filenames];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveOpenFilenamesKey);
@@ -849,7 +873,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSURL *)gs_URL
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredSaveSelection(self)) {
     return [self gs_URL];
   }
   NSString *path = GSOpenSaveGetAssociatedObject(self, GSOpenSaveSaveFilenameKey);
@@ -858,7 +882,7 @@ static BOOL GSOpenSaveBoolForKey(id obj, const void *key, BOOL defaultValue)
 
 - (NSString *)gs_filename
 {
-  if (!GSOpenSaveShouldUseNativeBackend()) {
+  if (!GSOpenSaveShouldUseNativeBackend() && !GSOpenSaveHasStoredSaveSelection(self)) {
     return [self gs_filename];
   }
   return GSOpenSaveGetAssociatedObject(self, GSOpenSaveSaveFilenameKey);
