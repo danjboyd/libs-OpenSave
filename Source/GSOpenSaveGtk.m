@@ -112,6 +112,76 @@ typedef struct {
   BOOL done;
 } GSOpenSaveDialogResult;
 
+static NSArray *GSOpenSaveBeginAppModalWindowBlock(void)
+{
+  NSApplication *app = NSApp;
+  NSMutableArray *windowStates = [NSMutableArray array];
+
+  if (app == nil) {
+    return windowStates;
+  }
+
+  for (NSWindow *window in [app orderedWindows]) {
+    if (window == nil) {
+      continue;
+    }
+    [windowStates addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                               window, @"window",
+                               [NSNumber numberWithBool:[window ignoresMouseEvents]], @"ignoresMouseEvents",
+                               nil]];
+    [window setIgnoresMouseEvents:YES];
+  }
+
+  return windowStates;
+}
+
+static void GSOpenSaveEndAppModalWindowBlock(NSArray *windowStates)
+{
+  for (NSDictionary *entry in windowStates) {
+    NSWindow *window = [entry objectForKey:@"window"];
+    NSNumber *ignoresMouseEvents = [entry objectForKey:@"ignoresMouseEvents"];
+
+    if (window == nil || ignoresMouseEvents == nil) {
+      continue;
+    }
+    [window setIgnoresMouseEvents:[ignoresMouseEvents boolValue]];
+  }
+}
+
+static BOOL GSOpenSaveShouldDispatchAppKitEvent(NSEvent *event)
+{
+  if (event == nil) {
+    return NO;
+  }
+
+  switch ([event type]) {
+    case NSLeftMouseDown:
+    case NSLeftMouseUp:
+    case NSRightMouseDown:
+    case NSRightMouseUp:
+    case NSMouseMoved:
+    case NSLeftMouseDragged:
+    case NSRightMouseDragged:
+    case NSMouseEntered:
+    case NSMouseExited:
+    case NSKeyDown:
+    case NSKeyUp:
+    case NSFlagsChanged:
+    case NSCursorUpdate:
+    case NSScrollWheel:
+    case NSOtherMouseDown:
+    case NSOtherMouseUp:
+    case NSOtherMouseDragged:
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_4, GS_API_LATEST)
+    case NSTabletPoint:
+    case NSTabletProximity:
+#endif
+      return NO;
+    default:
+      return YES;
+  }
+}
+
 static void GSOpenSaveDialogDone(GObject *source, GAsyncResult *res, gpointer userData)
 {
   (void)source;
@@ -122,11 +192,38 @@ static void GSOpenSaveDialogDone(GObject *source, GAsyncResult *res, gpointer us
 
 static void GSOpenSaveSpinMainLoops(GSOpenSaveDialogResult *state)
 {
-  NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
-  while (!state->done) {
-    g_main_context_iteration(NULL, FALSE);
-    [runLoop runMode:NSDefaultRunLoopMode
-          beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+  NSArray *windowStates = GSOpenSaveBeginAppModalWindowBlock();
+  NSApplication *app = NSApp;
+
+  @try {
+    while (!state->done) {
+      NSEvent *event = nil;
+
+      while (g_main_context_iteration(NULL, FALSE)) {
+      }
+
+      if (app == nil) {
+        [NSThread sleepForTimeInterval:0.01];
+        continue;
+      }
+
+      event = [app nextEventMatchingMask:NSAnyEventMask
+                               untilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]
+                                  inMode:NSDefaultRunLoopMode
+                                 dequeue:YES];
+      while (event != nil) {
+        if (GSOpenSaveShouldDispatchAppKitEvent(event)) {
+          [app sendEvent:event];
+        }
+        event = [app nextEventMatchingMask:NSAnyEventMask
+                                 untilDate:[NSDate distantPast]
+                                    inMode:NSDefaultRunLoopMode
+                                   dequeue:YES];
+      }
+    }
+  }
+  @finally {
+    GSOpenSaveEndAppModalWindowBlock(windowStates);
   }
 }
 
@@ -318,6 +415,7 @@ NSInteger GSOpenSaveGtkRunOpenPanel(NSOpenPanel *panel,
   }
 
   GtkFileDialog *dialog = gtk_file_dialog_new();
+  gtk_file_dialog_set_modal(dialog, TRUE);
   NSString *title = [panel title];
   if (title != nil) {
     gtk_file_dialog_set_title(dialog, [title UTF8String]);
@@ -376,6 +474,7 @@ NSInteger GSOpenSaveGtkRunSavePanel(NSSavePanel *panel,
   }
 
   GtkFileDialog *dialog = gtk_file_dialog_new();
+  gtk_file_dialog_set_modal(dialog, TRUE);
   NSString *title = [panel title];
   if (title == nil || [title length] == 0) {
     title = [panel message];
