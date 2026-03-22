@@ -4,6 +4,7 @@ BUNDLE_NAME = GSOpenSaveUnitTests
 BUNDLE_EXTENSION = .bundle
 
 GSOpenSaveUnitTests_OBJC_FILES = \
+	GSOpenSaveGtkTests.m \
 	GSOpenSavePanelAccessorTests.m \
 	GSOpenSaveModeTests.m
 

@@ -8,10 +8,13 @@ BOOL GSOpenSaveGtkIsAvailable(void);
 NSInteger GSOpenSaveGtkRunOpenPanel(NSOpenPanel *panel,
                                     NSString *directory,
                                     NSString *filename,
-                                    NSArray *fileTypes);
+                                    NSArray *fileTypes,
+                                    NSWindow *parentWindow);
 NSInteger GSOpenSaveGtkRunSavePanel(NSSavePanel *panel,
                                     NSString *directory,
                                     NSString *filename,
-                                    NSArray *fileTypes);
+                                    NSArray *fileTypes,
+                                    NSWindow *parentWindow);
+FOUNDATION_EXPORT NSString *GSOpenSaveGtkParentWindowIdentifierForX11Handle(void *windowRef);
 
 #endif

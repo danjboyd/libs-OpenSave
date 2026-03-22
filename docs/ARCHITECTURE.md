@@ -52,7 +52,10 @@ Core methods to implement:
 - `-setTitle:`, `-setMessage:`
 
 ## GTK Mapping (Best Effort)
-- Use GTK 4 `GtkFileDialog` for dialogs.
+- On GNUstep X11 hosts, prefer `org.freedesktop.portal.FileChooser` with an
+  `x11:<xid>` parent identifier derived from `NSWindow.windowRef` so the
+  compositor gets a real transient/modal relationship to the app window.
+- Fall back to GTK 4 `GtkFileDialog` when no portal-parented path is available.
 - Map actions: open/save/select-folder.
 - Map file types to `GtkFileFilter` patterns.
 - Support multiple selection when requested.

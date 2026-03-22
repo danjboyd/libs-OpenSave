@@ -10,6 +10,15 @@ or remove them.
   investigation in GNUstep GUI stack and a stable fallback strategy.
 
 ## 2026-03-22
+- ~Received ScreenshotTool bug report: GTK dialogs were not truly modal
+  relative to GNUstep host windows because the Linux backend always passed a
+  `NULL` GTK parent, so the compositor/window manager could still restack the
+  app window independently. Resolved on 2026-03-22 by threading
+  `relativeToWindow:` / sheet parent windows into the native backend and
+  preferring `org.freedesktop.portal.FileChooser` with a real `x11:<xid>`
+  parent identifier derived from `NSWindow.windowRef` on GNUstep X11 hosts.
+  The legacy `GtkFileDialog` path remains as a best-effort fallback when no
+  native parent identifier is available.~
 - ~Received ScreenshotTool bug report: in GTK mode, a successful `NSOpenPanel`
   selection could leave `panel.URL` as `nil` because inherited `URL` accessors
   were swizzled unsafely between `NSOpenPanel` and `NSSavePanel`. Resolved on

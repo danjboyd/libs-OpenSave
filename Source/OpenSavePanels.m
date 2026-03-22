@@ -160,7 +160,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModal];
   }
-  return GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
+  return GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes], nil);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path file:(NSString *)name
@@ -168,7 +168,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name];
   }
-  return GSOpenSaveRunOpenPanel(self, path, name, [self allowedFileTypes]);
+  return GSOpenSaveRunOpenPanel(self, path, name, [self allowedFileTypes], nil);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
@@ -178,7 +178,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name types:fileTypes];
   }
-  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes, nil);
 }
 
 - (NSInteger)gs_runModalForTypes:(NSArray *)fileTypes
@@ -186,7 +186,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForTypes:fileTypes];
   }
-  return GSOpenSaveRunOpenPanel(self, nil, nil, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, nil, nil, fileTypes, nil);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
@@ -197,8 +197,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:name types:fileTypes relativeToWindow:window];
   }
-  (void)window;
-  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes);
+  return GSOpenSaveRunOpenPanel(self, path, name, fileTypes, window);
 }
 
 - (void)gs_beginSheetForDirectory:(NSString *)path
@@ -259,8 +258,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
     [self gs_beginSheetModalForWindow:window completionHandler:handler];
     return;
   }
-  (void)window;
-  NSInteger result = GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunOpenPanel(self, nil, nil, [self allowedFileTypes], window);
   if (handler != NULL) {
     handler(result);
   }
@@ -507,7 +505,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModal];
   }
-  return GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes], nil);
 }
 
 - (void)gs_beginSheetModalForWindow:(NSWindow *)window
@@ -517,8 +515,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
     [self gs_beginSheetModalForWindow:window completionHandler:handler];
     return;
   }
-  (void)window;
-  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes], window);
   if (handler != NULL) {
     handler(result);
   }
@@ -530,7 +527,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
     [self gs_beginWithCompletionHandler:handler];
     return;
   }
-  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes]);
+  NSInteger result = GSOpenSaveRunSavePanel(self, [self directory], [self filename], [self allowedFileTypes], nil);
   if (handler != NULL) {
     handler(result);
   }
@@ -541,7 +538,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:filename];
   }
-  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes], nil);
 }
 
 - (NSInteger)gs_runModalForDirectory:(NSString *)path
@@ -551,8 +548,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   if (!GSOpenSaveShouldUseNativeBackend()) {
     return [self gs_runModalForDirectory:path file:filename relativeToWindow:window];
   }
-  (void)window;
-  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  return GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes], window);
 }
 
 - (void)gs_beginSheetForDirectory:(NSString *)path
@@ -575,7 +571,7 @@ static BOOL GSOpenSaveHasStoredSaveSelection(NSSavePanel *panel)
   (void)delegate;
   (void)didEndSelector;
   (void)contextInfo;
-  GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes]);
+  GSOpenSaveRunSavePanel(self, path, filename, [self allowedFileTypes], window);
 }
 
 - (void)gs_setAllowedFileTypes:(NSArray *)types

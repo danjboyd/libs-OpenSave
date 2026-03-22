@@ -41,13 +41,14 @@ BOOL GSOpenSaveHasNativeBackend(void)
 NSInteger GSOpenSaveRunOpenPanel(NSOpenPanel *panel,
                                  NSString *directory,
                                  NSString *filename,
-                                 NSArray *fileTypes)
+                                 NSArray *fileTypes,
+                                 NSWindow *parentWindow)
 {
   switch (GSOpenSaveSelectBackend()) {
     case GSOpenSaveBackendKindGtk:
-      return GSOpenSaveGtkRunOpenPanel(panel, directory, filename, fileTypes);
+      return GSOpenSaveGtkRunOpenPanel(panel, directory, filename, fileTypes, parentWindow);
     case GSOpenSaveBackendKindWin32:
-      return GSOpenSaveWin32RunOpenPanel(panel, directory, filename, fileTypes);
+      return GSOpenSaveWin32RunOpenPanel(panel, directory, filename, fileTypes, parentWindow);
     case GSOpenSaveBackendKindNone:
     default:
       return NSFileHandlingPanelCancelButton;
@@ -57,13 +58,14 @@ NSInteger GSOpenSaveRunOpenPanel(NSOpenPanel *panel,
 NSInteger GSOpenSaveRunSavePanel(NSSavePanel *panel,
                                  NSString *directory,
                                  NSString *filename,
-                                 NSArray *fileTypes)
+                                 NSArray *fileTypes,
+                                 NSWindow *parentWindow)
 {
   switch (GSOpenSaveSelectBackend()) {
     case GSOpenSaveBackendKindGtk:
-      return GSOpenSaveGtkRunSavePanel(panel, directory, filename, fileTypes);
+      return GSOpenSaveGtkRunSavePanel(panel, directory, filename, fileTypes, parentWindow);
     case GSOpenSaveBackendKindWin32:
-      return GSOpenSaveWin32RunSavePanel(panel, directory, filename, fileTypes);
+      return GSOpenSaveWin32RunSavePanel(panel, directory, filename, fileTypes, parentWindow);
     case GSOpenSaveBackendKindNone:
     default:
       return NSFileHandlingPanelCancelButton;

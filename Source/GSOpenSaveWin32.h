@@ -8,10 +8,12 @@ BOOL GSOpenSaveWin32IsAvailable(void);
 NSInteger GSOpenSaveWin32RunOpenPanel(NSOpenPanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes);
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow);
 NSInteger GSOpenSaveWin32RunSavePanel(NSSavePanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes);
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow);
 
 #endif

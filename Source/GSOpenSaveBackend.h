@@ -8,10 +8,12 @@ BOOL GSOpenSaveHasNativeBackend(void);
 NSInteger GSOpenSaveRunOpenPanel(NSOpenPanel *panel,
                                  NSString *directory,
                                  NSString *filename,
-                                 NSArray *fileTypes);
+                                 NSArray *fileTypes,
+                                 NSWindow *parentWindow);
 NSInteger GSOpenSaveRunSavePanel(NSSavePanel *panel,
                                  NSString *directory,
                                  NSString *filename,
-                                 NSArray *fileTypes);
+                                 NSArray *fileTypes,
+                                 NSWindow *parentWindow);
 
 #endif

@@ -209,8 +209,10 @@ BOOL GSOpenSaveWin32IsAvailable(void)
 NSInteger GSOpenSaveWin32RunOpenPanel(NSOpenPanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes)
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow)
 {
+  (void)parentWindow;
   if ([panel canChooseDirectories] && ![panel canChooseFiles]) {
     return GSOpenSaveRunDirectoryPicker(panel, [panel title]);
   }
@@ -265,8 +267,10 @@ NSInteger GSOpenSaveWin32RunOpenPanel(NSOpenPanel *panel,
 NSInteger GSOpenSaveWin32RunSavePanel(NSSavePanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes)
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow)
 {
+  (void)parentWindow;
   NSString *title = [panel title];
   if (title == nil || [title length] == 0) {
     title = [panel message];
@@ -334,24 +338,28 @@ BOOL GSOpenSaveWin32IsAvailable(void)
 NSInteger GSOpenSaveWin32RunOpenPanel(NSOpenPanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes)
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow)
 {
   (void)panel;
   (void)directory;
   (void)filename;
   (void)fileTypes;
+  (void)parentWindow;
   return NSFileHandlingPanelCancelButton;
 }
 
 NSInteger GSOpenSaveWin32RunSavePanel(NSSavePanel *panel,
                                       NSString *directory,
                                       NSString *filename,
-                                      NSArray *fileTypes)
+                                      NSArray *fileTypes,
+                                      NSWindow *parentWindow)
 {
   (void)panel;
   (void)directory;
   (void)filename;
   (void)fileTypes;
+  (void)parentWindow;
   return NSFileHandlingPanelCancelButton;
 }
 
