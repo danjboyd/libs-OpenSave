@@ -63,21 +63,69 @@ static NSString *GSOpenSavePatternForType(NSString *type)
   return type;
 }
 
+static NSString *GSOpenSaveDisplayNameForType(NSString *type)
+{
+  if (![type isKindOfClass:[NSString class]] || [type length] == 0) {
+    return nil;
+  }
+
+  NSString *lower = [type lowercaseString];
+  if ([lower hasPrefix:@"."]) {
+    lower = [lower substringFromIndex:1];
+  }
+  if ([lower isEqualToString:@"htm"] || [lower isEqualToString:@"html"]) {
+    return @"HTML Files";
+  }
+  if ([lower isEqualToString:@"rtf"]) {
+    return @"RTF Files";
+  }
+  if ([lower isEqualToString:@"docx"]) {
+    return @"DOCX Files";
+  }
+  if ([lower isEqualToString:@"odt"]) {
+    return @"ODT Files";
+  }
+  if ([lower isEqualToString:@"pdf"]) {
+    return @"PDF Files";
+  }
+  return [[lower uppercaseString] stringByAppendingString:@" Files"];
+}
+
 static wchar_t *GSOpenSaveBuildFilterBuffer(NSArray *fileTypes,
                                             NSString *requiredFileType,
                                             BOOL allowsOtherFileTypes)
 {
   NSMutableArray *patterns = [NSMutableArray array];
+  NSMutableDictionary *patternsByName = [NSMutableDictionary dictionary];
   for (NSString *type in fileTypes) {
     NSString *pattern = GSOpenSavePatternForType(type);
     if (pattern != nil) {
       [patterns addObject:pattern];
+      NSString *name = GSOpenSaveDisplayNameForType(type);
+      if (name != nil) {
+        NSMutableArray *namedPatterns = [patternsByName objectForKey:name];
+        if (namedPatterns == nil) {
+          namedPatterns = [NSMutableArray array];
+          [patternsByName setObject:namedPatterns forKey:name];
+        }
+        if (![namedPatterns containsObject:pattern]) {
+          [namedPatterns addObject:pattern];
+        }
+      }
     }
   }
 
   NSMutableArray *entries = [NSMutableArray array];
   if ([patterns count] > 0) {
-    [entries addObject:@[@"Allowed Types", [patterns componentsJoinedByString:@";"]]];
+    [entries addObject:@[@"All Supported Types", [patterns componentsJoinedByString:@";"]]];
+  }
+
+  NSArray *sortedNames = [[patternsByName allKeys] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+  for (NSString *name in sortedNames) {
+    NSArray *namedPatterns = [patternsByName objectForKey:name];
+    if ([namedPatterns count] > 0) {
+      [entries addObject:@[name, [namedPatterns componentsJoinedByString:@";"]]];
+    }
   }
 
   NSString *required = GSOpenSavePatternForType(requiredFileType);

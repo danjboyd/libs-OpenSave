@@ -29,7 +29,7 @@ ifneq ($(GTK4_CFLAGS),)
 endif
 
 ifneq (,$(findstring mingw,$(GNUSTEP_HOST_OS)))
-  ADDITIONAL_OBJCFLAGS += -DGS_OPENSAVE_HAVE_WIN32=1
+  ADDITIONAL_OBJCFLAGS += -include sys/types.h "-Dmode_t=unsigned short" -DGS_OPENSAVE_HAVE_WIN32=1
   OpenSave_LIBRARIES_DEPEND_UPON += -lcomdlg32 -lshell32 -lole32 -luuid
 endif
 
