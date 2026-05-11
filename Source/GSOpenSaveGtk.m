@@ -59,6 +59,38 @@ static NSString *GSOpenSavePatternForType(NSString *type)
   return type;
 }
 
+NSString *GSOpenSaveGtkOpenAcceptLabelForPrompt(NSString *prompt)
+{
+  if (prompt != nil && [prompt length] > 0) {
+    if ([prompt isEqualToString:@"Name:"]) {
+      return @"Open";
+    }
+    return prompt;
+  }
+  return @"Open";
+}
+
+NSString *GSOpenSaveGtkOpenAcceptLabel(NSOpenPanel *panel)
+{
+  return GSOpenSaveGtkOpenAcceptLabelForPrompt([panel prompt]);
+}
+
+NSString *GSOpenSaveGtkSaveAcceptLabelForPrompt(NSString *prompt)
+{
+  if (prompt != nil && [prompt length] > 0) {
+    if ([prompt isEqualToString:@"Name:"]) {
+      return @"Save";
+    }
+    return prompt;
+  }
+  return @"Save";
+}
+
+NSString *GSOpenSaveGtkSaveAcceptLabel(NSSavePanel *panel)
+{
+  return GSOpenSaveGtkSaveAcceptLabelForPrompt([panel prompt]);
+}
+
 static void GSOpenSaveFilterAddType(GtkFileFilter *filter, NSString *type)
 {
   NSString *pattern = nil;
@@ -788,7 +820,7 @@ static BOOL GSOpenSaveTryPortalOpenPanel(NSOpenPanel *panel,
 {
   NSString *parentWindowIdentifier = GSOpenSaveGtkPreferredParentWindowIdentifier(parentWindow);
   NSString *title = [panel title];
-  NSString *prompt = [panel prompt];
+  NSString *prompt = GSOpenSaveGtkOpenAcceptLabel(panel);
   NSString *handleToken = nil;
   GVariantBuilder options;
   GVariant *filters = NULL;
@@ -882,9 +914,10 @@ static BOOL GSOpenSaveTryPortalSavePanel(NSSavePanel *panel,
   g_variant_builder_add(&options, "{sv}", "handle_token",
                         g_variant_new_string([handleToken UTF8String]));
   g_variant_builder_add(&options, "{sv}", "modal", g_variant_new_boolean(TRUE));
-  if ([panel prompt] != nil && [[panel prompt] length] > 0) {
+  NSString *prompt = GSOpenSaveGtkSaveAcceptLabel(panel);
+  if (prompt != nil && [prompt length] > 0) {
     g_variant_builder_add(&options, "{sv}", "accept_label",
-                          g_variant_new_string([[panel prompt] UTF8String]));
+                          g_variant_new_string([prompt UTF8String]));
   }
 
   currentFolder = GSOpenSaveVariantForPath(directory);
@@ -970,6 +1003,10 @@ NSInteger GSOpenSaveGtkRunOpenPanel(NSOpenPanel *panel,
   if (filename != nil) {
     gtk_file_dialog_set_initial_name(dialog, [filename UTF8String]);
   }
+  NSString *prompt = GSOpenSaveGtkOpenAcceptLabel(panel);
+  if (prompt != nil && [prompt length] > 0) {
+    gtk_file_dialog_set_accept_label(dialog, [prompt UTF8String]);
+  }
   GtkFileFilter *defaultFilter = NULL;
   GListModel *filters = GSOpenSaveBuildFilters(fileTypes, nil, NO, &defaultFilter);
   if (filters != NULL) {
@@ -1036,8 +1073,9 @@ NSInteger GSOpenSaveGtkRunSavePanel(NSSavePanel *panel,
     gtk_file_dialog_set_initial_folder(dialog, folder);
     g_object_unref(folder);
   }
-  if ([panel prompt] != nil) {
-    gtk_file_dialog_set_accept_label(dialog, [[panel prompt] UTF8String]);
+  NSString *prompt = GSOpenSaveGtkSaveAcceptLabel(panel);
+  if (prompt != nil && [prompt length] > 0) {
+    gtk_file_dialog_set_accept_label(dialog, [prompt UTF8String]);
   }
 
   NSString *defaultName = filename;
